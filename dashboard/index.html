@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Aria — Workflow Dashboard</title>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500;600&display=swap');
+
+        :root {
+            --bg-gradient: radial-gradient(circle at 50% 0%, hsl(222, 47%, 12%) 0%, hsl(222, 47%, 4%) 100%);
+            --panel-bg: rgba(13, 17, 33, 0.7);
+            --panel-border: rgba(255, 255, 255, 0.05);
+            --border-hover: rgba(255, 255, 255, 0.12);
+            --text-main: hsl(210, 40%, 95%);
+            --text-muted: hsl(215, 20%, 65%);
+            --text-dark: hsl(215, 15%, 45%);
+            
+            /* Curated HSL colors */
+            --cyan: hsl(186, 100%, 50%);
+            --blue: hsl(217, 91%, 60%);
+            --purple: hsl(271, 91%, 65%);
+            --green: hsl(150, 84%, 42%);
+            --yellow: hsl(45, 93%, 47%);
+            --red: hsl(0, 84%, 60%);
+            --magenta: hsl(329, 86%, 56%);
+            
+            --neon-blue-glow: 0 0 20px rgba(59, 130, 246, 0.25);
+            --neon-green-glow: 0 0 20px rgba(16, 185, 129, 0.25);
+            --neon-red-glow: 0 0 20px rgba(239, 68, 68, 0.25);
+            --panel-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6);
+        }
+
+        body {
+            background: var(--bg-gradient);
+            color: var(--text-main);
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            margin: 0;
+            padding: 24px;
+            display: grid;
+            grid-template-columns: 360px 1fr;
+            grid-template-rows: auto 1fr;
+            gap: 24px;
+            height: 100vh;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        header {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 24px;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 14px;
+            backdrop-filter: blur(20px) saturate(120%);
+            box-shadow: var(--panel-shadow);
+        }
+
+        h1 { 
+            margin: 0; 
+            font-size: 1.6rem; 
+            font-weight: 800; 
+            background: linear-gradient(135deg, var(--cyan) 0%, var(--blue) 50%, var(--purple) 100%);
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.02em;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        h1 svg {
+            width: 28px;
+            height: 28px;
+            stroke: var(--cyan);
+            filter: drop-shadow(0 0 8px rgba(0, 242, 254, 0.5));
+            animation: floatRocket 3s ease-in-out infinite alternate;
+        }
+        
+        .status { 
+            font-size: 0.9rem; 
+            color: var(--text-muted); 
+            display: flex; 
+            align-items: center; 
+            gap: 10px; 
+            background: rgba(255, 255, 255, 0.03);
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .status.connected {
+            border-color: rgba(16, 185, 129, 0.2);
+            background: rgba(16, 185, 129, 0.04);
+            color: var(--green);
+        }
+        .status.disconnected {
+            border-color: rgba(239, 68, 68, 0.2);
+            background: rgba(239, 68, 68, 0.04);
+            color: var(--red);
+        }
+
+        .status svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            backdrop-filter: blur(20px) saturate(120%);
+            box-shadow: var(--panel-shadow);
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .panel:hover {
+            border-color: var(--border-hover);
+            box-shadow: 0 25px 50px -20px rgba(0, 0, 0, 0.7);
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        h2 { 
+            margin: 0; 
+            font-size: 0.85rem; 
+            color: var(--text-muted); 
+            font-weight: 800; 
+            text-transform: uppercase; 
+            letter-spacing: 0.15em; 
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        h2 svg {
+            width: 16px;
+            height: 16px;
+            stroke-width: 2.2;
+        }
+
+        /* Pipeline Visualizer */
+        .pipeline {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .stage {
+            padding: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.01);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            cursor: default;
+        }
+
+        .stage:hover {
+            background: rgba(255, 255, 255, 0.03);
+            transform: translateX(4px);
+            border-color: rgba(255, 255, 255, 0.08);
+        }
+
+        .stage::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 20%;
+            height: 60%;
+            width: 3px;
+            background: transparent;
+            border-radius: 0 4px 4px 0;
+            transition: all 0.3s ease;
+        }
+
+        .stage.active {
+            border-color: rgba(59, 130, 246, 0.3);
+            background: rgba(59, 130, 246, 0.05);
+            box-shadow: var(--neon-blue-glow);
+            animation: pulseActive 2s infinite alternate;
+        }
+        .stage.active::before {
+            background: var(--blue);
+            height: 80%;
+            top: 10%;
+            box-shadow: 0 0 10px var(--blue);
+        }
+        .stage.active .stage-title {
+            color: var(--cyan);
+        }
+        .stage.active .stage-title svg {
+            stroke: var(--cyan);
+            filter: drop-shadow(0 0 4px var(--cyan));
+            animation: spinSlow 4s linear infinite;
+        }
+
+        .stage.done { 
+            border-color: rgba(16, 185, 129, 0.2); 
+            background: rgba(16, 185, 129, 0.03);
+        }
+        .stage.done::before {
+            background: var(--green);
+        }
+        .stage.done .stage-title {
+            color: var(--green);
+        }
+        .stage.done .stage-title svg {
+            stroke: var(--green);
+        }
+
+        .stage.error { 
+            border-color: rgba(239, 68, 68, 0.3); 
+            background: rgba(239, 68, 68, 0.06);
+            box-shadow: var(--neon-red-glow);
+        }
+        .stage.error::before {
+            background: var(--red);
+        }
+        .stage.error .stage-title {
+            color: var(--red);
+        }
+        .stage.error .stage-title svg {
+            stroke: var(--red);
+        }
+
+        .stage-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .stage-title { 
+            font-weight: 700; 
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-muted);
+            transition: color 0.3s ease;
+        }
+
+        .stage-title svg {
+            width: 18px;
+            height: 18px;
+            stroke-width: 2.2;
+            transition: all 0.3s ease;
+        }
+        
+        .stage-badge {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 3px 8px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-dark);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.3s ease;
+        }
+
+        .stage-badge.active {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--cyan);
+            border-color: rgba(59, 130, 246, 0.2);
+        }
+
+        .stage-badge.done {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--green);
+            border-color: rgba(16, 185, 129, 0.2);
+        }
+
+        .stage-badge.error {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--red);
+            border-color: rgba(239, 68, 68, 0.2);
+        }
+
+        .stage-detail { 
+            font-size: 0.85rem; 
+            color: var(--text-muted); 
+            white-space: nowrap; 
+            overflow: hidden; 
+            text-overflow: ellipsis; 
+            font-weight: 500;
+            padding-left: 28px;
+        }
+
+        /* Controls */
+        .terminal-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .control-btn {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            color: var(--text-muted);
+            padding: 6px 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .control-btn svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
+            color: var(--text-main);
+        }
+
+        .control-btn.active {
+            color: var(--cyan);
+            border-color: rgba(0, 242, 254, 0.3);
+            background: rgba(0, 242, 254, 0.05);
+            box-shadow: 0 0 10px rgba(0, 242, 254, 0.1);
+        }
+
+        /* Log Terminal */
+        .terminal {
+            font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
+            font-size: 0.85rem;
+            line-height: 1.6;
+            overflow-y: auto;
+            flex: 1;
+            padding: 20px;
+            background: #06070d;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            box-shadow: inset 0 4px 20px rgba(0, 0, 0, 0.8);
+        }
+
+        .log-line { 
+            margin-bottom: 8px; 
+            word-wrap: break-word; 
+            padding: 6px 10px;
+            border-radius: 6px;
+            border-left: 2px solid transparent;
+            transition: background-color 0.2s ease;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+        
+        .log-line:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .log-time { 
+            color: var(--text-dark); 
+            font-size: 0.75rem; 
+            background: rgba(255, 255, 255, 0.03);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 500;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .log-content {
+            flex-grow: 1;
+            word-break: break-all;
+        }
+
+        /* Log badges styling */
+        .log-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-weight: 700;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            padding: 2px 6px;
+            border-radius: 4px;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .log-badge svg {
+            width: 12px;
+            height: 12px;
+            stroke-width: 2.5;
+        }
+        
+        .level-info { 
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--green); 
+            border: 1px solid rgba(16, 185, 129, 0.15);
+        }
+        .level-debug { 
+            background: rgba(0, 242, 254, 0.1);
+            color: var(--cyan); 
+            border: 1px solid rgba(0, 242, 254, 0.15);
+        }
+        .level-warn { 
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--yellow); 
+            border: 1px solid rgba(245, 158, 11, 0.15);
+        }
+        .level-error { 
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--red); 
+            border: 1px solid rgba(239, 68, 68, 0.15);
+        }
+        .level-trace { 
+            background: rgba(168, 85, 247, 0.1);
+            color: var(--purple); 
+            border: 1px solid rgba(168, 85, 247, 0.15);
+        }
+        .level-tool {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--blue);
+            border: 1px solid rgba(59, 130, 246, 0.15);
+        }
+        .level-success {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--green);
+            border: 1px solid rgba(16, 185, 129, 0.25);
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.1);
+        }
+        .level-fail {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--red);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.1);
+        }
+        
+        .token { 
+            color: #fbbf24; 
+            text-shadow: 0 0 4px rgba(251, 191, 36, 0.3);
+            padding: 6px 12px;
+            background: rgba(251, 191, 36, 0.05);
+            border-radius: 8px;
+            border-left: 3px solid var(--yellow);
+            margin-bottom: 8px;
+        }
+
+        /* Animations */
+        @keyframes pulseConnected {
+            0% { box-shadow: 0 0 6px rgba(16, 185, 129, 0.4); opacity: 0.8; }
+            100% { box-shadow: 0 0 14px rgba(16, 185, 129, 0.8); opacity: 1; }
+        }
+
+        @keyframes pulseActive {
+            0% { box-shadow: 0 0 10px rgba(59, 130, 246, 0.15); border-color: rgba(59, 130, 246, 0.2); }
+            100% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.35); border-color: rgba(59, 130, 246, 0.5); }
+        }
+
+        @keyframes floatRocket {
+            0% { transform: translateY(0) rotate(0); }
+            100% { transform: translateY(-4px) rotate(2deg); }
+        }
+
+        @keyframes spinSlow {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1><i data-lucide="rocket"></i> Aria Dashboard</h1>
+        <div id="conn-status" class="status disconnected">
+            <i id="conn-icon" data-lucide="wifi-off"></i>
+            <span id="conn-text">Disconnected</span>
+        </div>
+    </header>
+
+    <div class="panel">
+        <h2><i data-lucide="workflow"></i> Pipeline</h2>
+        <div class="pipeline" id="pipeline-view">
+            <div class="stage" id="stage-input">
+                <div class="stage-header">
+                    <span class="stage-title"><i data-lucide="message-square"></i> 1. Input</span>
+                    <span class="stage-badge" id="badge-input">Idle</span>
+                </div>
+                <div class="stage-detail" id="detail-input">Waiting...</div>
+            </div>
+            <div class="stage" id="stage-context">
+                <div class="stage-header">
+                    <span class="stage-title"><i data-lucide="database"></i> 2. Context</span>
+                    <span class="stage-badge" id="badge-context">-</span>
+                </div>
+                <div class="stage-detail" id="detail-context">-</div>
+            </div>
+            <div class="stage" id="stage-router">
+                <div class="stage-header">
+                    <span class="stage-title"><i data-lucide="git-branch"></i> 3. Router</span>
+                    <span class="stage-badge" id="badge-router">-</span>
+                </div>
+                <div class="stage-detail" id="detail-router">-</div>
+            </div>
+            <div class="stage" id="stage-exec">
+                <div class="stage-header">
+                    <span class="stage-title"><i data-lucide="cpu"></i> 4. Execution</span>
+                    <span class="stage-badge" id="badge-exec">-</span>
+                </div>
+                <div class="stage-detail" id="detail-exec">-</div>
+            </div>
+            <div class="stage" id="stage-reflect">
+                <div class="stage-header">
+                    <span class="stage-title"><i data-lucide="eye"></i> 5. Reflection</span>
+                    <span class="stage-badge" id="badge-reflect">-</span>
+                </div>
+                <div class="stage-detail" id="detail-reflect">-</div>
+            </div>
+            <div class="stage" id="stage-output">
+                <div class="stage-header">
+                    <span class="stage-title"><i data-lucide="send"></i> 6. Output</span>
+                    <span class="stage-badge" id="badge-output">-</span>
+                </div>
+                <div class="stage-detail" id="detail-output">-</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <div class="panel-header">
+            <h2><i data-lucide="terminal"></i> Live Execution Log</h2>
+            <div class="terminal-controls">
+                <button id="btn-clear" class="control-btn" title="Clear Terminal Logs">
+                    <i data-lucide="trash-2"></i> Clear
+                </button>
+                <button id="btn-scroll" class="control-btn active" title="Toggle Auto Scroll">
+                    <i data-lucide="chevrons-down"></i> Auto-Scroll
+                </button>
+            </div>
+        </div>
+        <div class="terminal" id="terminal"></div>
+    </div>
+
+    <script>
+        let autoScroll = true;
+        const term = document.getElementById('terminal');
+        const btnClear = document.getElementById('btn-clear');
+        const btnScroll = document.getElementById('btn-scroll');
+        const stages = ['input', 'context', 'router', 'exec', 'reflect', 'output'];
+
+        // Event listeners for controls
+        btnClear.addEventListener('click', () => {
+            term.innerHTML = '';
+        });
+
+        btnScroll.addEventListener('click', () => {
+            autoScroll = !autoScroll;
+            if (autoScroll) {
+                btnScroll.classList.add('active');
+                term.scrollTop = term.scrollHeight;
+            } else {
+                btnScroll.classList.remove('active');
+            }
+        });
+        
+        function resetStages() {
+            stages.forEach(s => {
+                document.getElementById(`stage-${s}`).className = 'stage';
+                const badge = document.getElementById(`badge-${s}`);
+                if (badge) {
+                    badge.textContent = s === 'input' ? 'IDLE' : '-';
+                    badge.className = 'stage-badge';
+                }
+                if(s !== 'input') document.getElementById(`detail-${s}`).textContent = '-';
+            });
+            document.getElementById('detail-input').textContent = 'Waiting...';
+            lucide.createIcons();
+        }
+
+        function setStage(name, detail = '', status = 'active') {
+            const el = document.getElementById(`stage-${name}`);
+            if (el) {
+                el.className = `stage ${status}`;
+                if (detail) document.getElementById(`detail-${name}`).textContent = detail;
+                
+                const badge = document.getElementById(`badge-${name}`);
+                if (badge) {
+                    badge.textContent = status.toUpperCase();
+                    badge.className = `stage-badge ${status}`;
+                }
+                // Update icons in the stage element
+                lucide.createIcons({ root: el });
+            }
+        }
+
+        function appendLog(html) {
+            const div = document.createElement('div');
+            div.className = 'log-line';
+            div.innerHTML = html;
+            term.appendChild(div);
+            
+            // Only parse new icons in this specific log line
+            lucide.createIcons({ root: div });
+            
+            if (autoScroll) {
+                term.scrollTop = term.scrollHeight;
+            }
+        }
+
+        function connect() {
+            const ws = new WebSocket(`ws://${window.location.host}`);
+            const statusBox = document.getElementById('conn-status');
+            const statusIcon = document.getElementById('conn-icon');
+            const statusText = document.getElementById('conn-text');
+
+            ws.onopen = () => {
+                statusBox.className = 'status connected';
+                statusText.textContent = 'Connected (Live)';
+                statusIcon.setAttribute('data-lucide', 'wifi');
+                lucide.createIcons({ root: statusBox });
+                
+                appendLog(`<span class="log-time">${new Date().toLocaleTimeString()}</span> <span class="log-badge level-success"><i data-lucide="check"></i> SUCCESS</span> <span class="log-content">Dashboard Connected</span>`);
+            };
+
+            ws.onclose = () => {
+                statusBox.className = 'status disconnected';
+                statusText.textContent = 'Disconnected - Retrying...';
+                statusIcon.setAttribute('data-lucide', 'wifi-off');
+                lucide.createIcons({ root: statusBox });
+                
+                setTimeout(connect, 2000);
+            };
+
+            let currentTokenLine = null;
+
+            ws.onmessage = (e) => {
+                const evt = JSON.parse(e.data);
+                const timestampStr = evt.timestamp || evt.ts || new Date().toISOString();
+                const time = `<span class="log-time">${new Date(timestampStr).toLocaleTimeString()}</span>`;
+
+                // Handle Logs
+                if (evt.type === 'log') {
+                    if (currentTokenLine) { currentTokenLine = null; } // break token stream
+                    let lvlClass = `level-${evt.level.toLowerCase()}`;
+                    let levelLabel = evt.level.toUpperCase();
+                    if (evt.level === 'stage') {
+                        lvlClass = 'level-debug';
+                        levelLabel = 'STAGE';
+                    }
+                    
+                    let iconName = 'info';
+                    const lvl = evt.level.toLowerCase();
+                    if (lvl === 'debug') iconName = 'bug';
+                    else if (lvl === 'info') iconName = 'info';
+                    else if (lvl === 'warn') iconName = 'alert-triangle';
+                    else if (lvl === 'error') iconName = 'x-circle';
+                    else if (lvl === 'trace') iconName = 'terminal';
+                    else if (lvl === 'stage') iconName = 'workflow';
+                    else if (lvl === 'tool') iconName = 'wrench';
+                    else if (lvl === 'success') iconName = 'check';
+                    else if (lvl === 'fail') iconName = 'x';
+                    
+                    // Simple ANSI strip for display
+                    const cleanMsg = evt.message.replace(/\x1b\[[0-9;]*m/g, '');
+                    appendLog(`${time} <span class="log-badge ${lvlClass}"><i data-lucide="${iconName}"></i> ${levelLabel}</span> <span class="log-content">${cleanMsg}</span>`);
+                }
+                
+                // Handle Tokens
+                else if (evt.type === 'stream:token') {
+                    if (!currentTokenLine) {
+                        currentTokenLine = document.createElement('div');
+                        currentTokenLine.className = 'log-line token';
+                        term.appendChild(currentTokenLine);
+                    }
+                    currentTokenLine.textContent += evt.payload.token;
+                    if (autoScroll) {
+                        term.scrollTop = term.scrollHeight;
+                    }
+                }
+
+                // Handle Pipeline Events
+                else if (evt.type === 'input:received') {
+                    resetStages();
+                    setStage('input', `Prompt: "${evt.payload.input}"`, 'done');
+                    setStage('context', 'Building context...', 'active');
+                }
+                else if (evt.type === 'context:built') {
+                    setStage('context', `${evt.payload.historySize} msg in memory`, 'done');
+                    setStage('router', 'Routing...', 'active');
+                }
+                else if (evt.type === 'router:decided' || evt.type === 'router:pre_hit') {
+                    const r = evt.payload.route;
+                    setStage('router', `Mode: ${r.mode.toUpperCase()} (conf: ${r.confidence.toFixed(2)})`, 'done');
+                    setStage('exec', 'Executing...', 'active');
+                }
+                else if (evt.type === 'exec:tool_called') {
+                    setStage('exec', `Tool: ${evt.payload.tool} ${evt.payload.path || ''}`, 'active');
+                }
+                else if (evt.type === 'exec:done') {
+                    setStage('exec', `Done`, 'done');
+                    setStage('reflect', 'Reflecting...', 'active');
+                }
+                else if (evt.type === 'reflect:verification_done') {
+                    setStage('reflect', `Verification: ${evt.payload.success ? 'Pass' : 'Fail'}`, 'active');
+                }
+                else if (evt.type === 'output:ready') {
+                    setStage('reflect', `Profile & Trace updated`, 'done');
+                    setStage('output', `Delivered`, 'done');
+                }
+                else if (evt.type === 'system:error') {
+                    setStage('exec', `Error: ${evt.payload.error}`, 'error');
+                }
+            };
+        }
+
+        // Initial icon compilation
+        lucide.createIcons();
+        connect();
+    </script>
+</body>
+</html>
