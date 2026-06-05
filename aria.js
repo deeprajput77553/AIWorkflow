@@ -22,6 +22,11 @@ import { ReflectionLayer } from './src/layers/ReflectionLayer.js';
 import { OutputLayer }     from './src/layers/OutputLayer.js';
 import { runTerminal }     from './src/layers/ExecutionLayer.js';
 
+// ── Native RAG ────────────────────────────────────────────────────────────
+import { documentWatcher } from './src/core/DocumentWatcher.js';
+import { vectorStore }     from './src/core/VectorStore.js';
+import { webCrawler }      from './src/utils/WebCrawler.js';
+
 // ── Plugins ───────────────────────────────────────────────────────────────
 import { pluginManager }   from './src/plugins/PluginManager.js';
 import WebSearch   from './src/plugins/WebSearch.js';
@@ -31,6 +36,7 @@ import OllamaPull  from './src/plugins/OllamaPull.js';
 import RunCommand  from './src/plugins/RunCommand.js';
 import FileReader  from './src/plugins/FileReader.js';
 import GenerateImage from './src/plugins/GenerateImage.js';
+import PlayMedia from './src/plugins/PlayMedia.js';
 
 // ── Register Plugins ──────────────────────────────────────────────────────
 pluginManager.register(WebSearch);
@@ -40,6 +46,7 @@ pluginManager.register(OllamaPull);
 pluginManager.register(RunCommand);
 pluginManager.register(FileReader);
 pluginManager.register(GenerateImage);
+pluginManager.register(PlayMedia);
 
 // ── Build Pipeline ────────────────────────────────────────────────────────
 const pipeline = new Pipeline()
@@ -183,9 +190,55 @@ async function handleBuiltin(ctx) {
         WORKSPACE_DIR = path.resolve(cmd.args);
         if (!fs.existsSync(WORKSPACE_DIR)) fs.mkdirSync(WORKSPACE_DIR, { recursive: true });
         contextManager.invalidateSnapshot();
+        documentWatcher.start(WORKSPACE_DIR);
         console.log(`\n🔒  Workspace changed to: ${WORKSPACE_DIR}\n`);
         ctx.builtinResult = WORKSPACE_DIR;
         break;
+    case 'embed': {
+        const target = cmd.args;
+        if (!target) {
+            console.log(`\n❌ Please provide a file path or URL to embed. Usage: /embed <path|url>\n`);
+            ctx.builtinResult = 'missing arg';
+            break;
+        }
+        try {
+            console.log(`\n⏳ Embedding ${target}...\n`);
+            if (target.startsWith('http://') || target.startsWith('https://')) {
+                await vectorStore.ingestUrl(target);
+            } else {
+                const fullPath = path.resolve(WORKSPACE_DIR, target);
+                await vectorStore.ingestFile(fullPath);
+            }
+            console.log(`\n✅ Embedded ${target} successfully!\n`);
+            ctx.builtinResult = 'embedded';
+        } catch (err) {
+            console.log(`\n❌ Failed to embed: ${err.message}\n`);
+            ctx.builtinResult = `error: ${err.message}`;
+        }
+        break;
+    }
+    case 'crawl': {
+        const args = cmd.args ? cmd.args.trim().split(/\s+/) : [];
+        const url = args[0];
+        const maxPages = args[1] ? parseInt(args[1], 10) : 5;
+
+        if (!url) {
+            console.log(`\n❌ Please provide a URL to crawl. Usage: /crawl <url> [maxPages]\n`);
+            ctx.builtinResult = 'missing arg';
+            break;
+        }
+
+        try {
+            console.log(`\n⏳ Crawling and embedding ${url} (limit: ${maxPages} pages)...\n`);
+            const pagesCount = await webCrawler.crawl(url, maxPages);
+            console.log(`\n✅ Successfully crawled and embedded ${pagesCount} pages from ${url}!\n`);
+            ctx.builtinResult = 'crawled';
+        } catch (err) {
+            console.log(`\n❌ Failed to crawl: ${err.message}\n`);
+            ctx.builtinResult = `error: ${err.message}`;
+        }
+        break;
+    }
     case 'help':
         printHelp();
         ctx.builtinResult = 'help';
@@ -211,6 +264,8 @@ function printHelp() {
   \x1b[93m/install <pkg>\x1b[0m    Install an npm package
   \x1b[93m/pull <model>\x1b[0m     Download an Ollama model
   \x1b[93m/workspace <dir>\x1b[0m  Change workspace directory
+  \x1b[93m/embed <target>\x1b[0m   Ingest file or URL into VectorStore
+  \x1b[93m/crawl <url> [max]\x1b[0m Crawl and embed a website recursively
   \x1b[93m/status\x1b[0m           Show system status
   \x1b[93m/help\x1b[0m             Show this help
 
@@ -253,9 +308,21 @@ async function runLoop() {
     const ask = (q) => new Promise(resolve => rl.question(q, resolve));
 
     const ws = await ask('Workspace folder (blank = current dir):\n\x1b[93m❯ \x1b[0m');
-    if (ws.trim()) WORKSPACE_DIR = path.resolve(ws.trim());
-    if (!fs.existsSync(WORKSPACE_DIR)) fs.mkdirSync(WORKSPACE_DIR, { recursive: true });
+    if (ws.trim()) {
+        try {
+            const resolved = path.resolve(ws.trim());
+            if (!fs.existsSync(resolved)) {
+                fs.mkdirSync(resolved, { recursive: true });
+            }
+            WORKSPACE_DIR = resolved;
+        } catch (err) {
+            Logger.warn(`[Workspace] Invalid workspace folder "${ws.trim()}": ${err.message}. Falling back to current directory.`);
+            WORKSPACE_DIR = process.cwd();
+        }
+    }
     Logger.success(`Workspace locked: ${WORKSPACE_DIR}`);
+
+    documentWatcher.start(WORKSPACE_DIR);
 
     console.log(`\n\x1b[2mType /help for commands, exit to quit.\x1b[0m\n`);
 

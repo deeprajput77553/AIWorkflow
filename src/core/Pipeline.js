@@ -41,7 +41,7 @@ export class Pipeline {
             ctx.addTrace({ stage: stageName, duration_ms: elapsed });
 
             // Built-in commands (exit, /profile, /clear etc.) skip remaining stages
-            if (ctx.isBuiltinCommand && ctx.builtinResult !== null) {
+            if (ctx.isBuiltinCommand) {
                 Logger.debug(`Pipeline: short-circuit after "${stageName}" (builtin command)`);
                 break;
             }

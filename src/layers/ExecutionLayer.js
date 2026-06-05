@@ -238,13 +238,22 @@ export class ExecutionLayer {
         Logger.stage('Reactive', `Using ${MODELS.REACTIVE} (streaming)...`);
         const extra  = ctx.routeDecision.extraPrompt || 'Answer helpfully and concisely.';
         const brevity = ctx.routeDecision.complexity === 'low' ? ' Reply in 1–2 sentences max.' : '';
-        const sys    = contextManager.buildContextHeader(
-            `You are Aria, a concise and friendly local AI assistant.${brevity}\nInstruction: ${extra}`
-        );
+        const citationRules = `
+=== MANDATORY CITATION REQUIREMENT ===
+- If you use any information retrieved from '[Retrieved Documents]', you MUST cite your source inline using this exact bracket format: [Source: <document_name>, Chunk <number>] (for example: [Source: https://en.wikipedia.org/wiki/IBM, Chunk 2] or [Source: quantum_computing_overview.docx, Chunk 1]).
+- You MUST append this citation directly to the end of the sentence containing the retrieved facts.
+- Do not use conversational citations like "According to the webpage...". Use the brackets format [Source: ..., Chunk ...] instead.
+- If the information is not in the '[Retrieved Documents]' section, do not add any citations.
+`;
+        const sys = `You are Aria, a concise and friendly local AI assistant.${brevity}\nInstruction: ${extra}\n${citationRules}\n\n` + ctx.contextHeader;
+        
+        const userPromptSuffix = ctx.enrichedPrompt + 
+            `\n\n[REMINDER]: If you use the retrieved documents to answer my question, you MUST cite your source inline using the exact bracket format: [Source: <document_name>, Chunk <number>] (e.g. [Source: https://en.wikipedia.org/wiki/IBM, Chunk 1]). Do not use conversational citations like "According to the webpage...".`;
+
         const msgs = [
             { role: 'system', content: sys },
             ...ctx.history.slice(-5).map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content })),
-            { role: 'user',   content: ctx.enrichedPrompt }
+            { role: 'user',   content: userPromptSuffix }
         ];
 
         Logger.nl();
@@ -400,6 +409,12 @@ For WEB tasks: Full semantic HTML, Google Fonts, dark/premium CSS with variables
 For PYTHON: Complete, working, well-commented code with imports and error handling.
 For ALL: Write FULL content every time — never truncate with "..." or "etc".
 
+=== CITATION RULES ===
+- If you use any information retrieved from '[Retrieved Documents]', you MUST cite your source inline using this exact bracket format: [Source: <document_name>, Chunk <number>] (for example: [Source: https://en.wikipedia.org/wiki/IBM, Chunk 2] or [Source: quantum_computing_overview.docx, Chunk 1]).
+- You MUST append this citation directly to the end of the sentence containing the retrieved facts.
+- Do not use conversational citations like "According to the webpage...". Use the brackets format [Source: ..., Chunk ...] instead.
+- If the information is not in the '[Retrieved Documents]' section, do not add any citations.
+
 === AVAILABLE TOOLS ===
 {"tool":"list_dir","path":"./"}
 {"tool":"read_file","path":"filename.ext"}
@@ -420,7 +435,7 @@ Done: {"response":"Summary of what was completed"}
 5. If the user asks you to write about a topic, DO NOT ask for more details. Generate the content using your own knowledge.
 6. When ALL files are created, verified, and working: output {"response":"..."}.
 
-${contextManager.buildContextHeader('')}`;
+${ctx.contextHeader}`;
 
         let history = [{ role: 'system', content: toolDocs }, { role: 'user', content: ctx.enrichedPrompt }];
         let loops = 30, hasCritiquedPlan = false, verificationAttempts = 0, formattingErrors = 0;

@@ -492,6 +492,22 @@
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+
+        /* Synced Lyrics */
+        .lyric-line {
+            padding: 6px 0;
+            transition: all 0.3s ease;
+            opacity: 0.4;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+        .lyric-line.active {
+            opacity: 1;
+            color: var(--cyan);
+            font-weight: 700;
+            transform: scale(1.05);
+            text-shadow: 0 0 10px rgba(0, 242, 254, 0.4);
+        }
     </style>
 </head>
 <body>
@@ -504,50 +520,82 @@
         </div>
     </header>
 
-    <div class="panel">
-        <h2><i data-lucide="workflow"></i> Pipeline</h2>
-        <div class="pipeline" id="pipeline-view">
-            <div class="stage" id="stage-input">
-                <div class="stage-header">
-                    <span class="stage-title"><i data-lucide="message-square"></i> 1. Input</span>
-                    <span class="stage-badge" id="badge-input">Idle</span>
+    <div class="sidebar-col" style="display: flex; flex-direction: column; gap: 24px; min-height: 0; overflow: hidden; height: 100%;">
+        <div class="panel" style="flex: 1; min-height: 0; display: flex; flex-direction: column;">
+            <h2><i data-lucide="workflow"></i> Pipeline</h2>
+            <div class="pipeline" id="pipeline-view" style="flex: 1; overflow-y: auto; padding-right: 4px;">
+                <div class="stage" id="stage-input">
+                    <div class="stage-header">
+                        <span class="stage-title"><i data-lucide="message-square"></i> 1. Input</span>
+                        <span class="stage-badge" id="badge-input">Idle</span>
+                    </div>
+                    <div class="stage-detail" id="detail-input">Waiting...</div>
                 </div>
-                <div class="stage-detail" id="detail-input">Waiting...</div>
+                <div class="stage" id="stage-context">
+                    <div class="stage-header">
+                        <span class="stage-title"><i data-lucide="database"></i> 2. Context</span>
+                        <span class="stage-badge" id="badge-context">-</span>
+                    </div>
+                    <div class="stage-detail" id="detail-context">-</div>
+                </div>
+                <div class="stage" id="stage-router">
+                    <div class="stage-header">
+                        <span class="stage-title"><i data-lucide="git-branch"></i> 3. Router</span>
+                        <span class="stage-badge" id="badge-router">-</span>
+                    </div>
+                    <div class="stage-detail" id="detail-router">-</div>
+                </div>
+                <div class="stage" id="stage-exec">
+                    <div class="stage-header">
+                        <span class="stage-title"><i data-lucide="cpu"></i> 4. Execution</span>
+                        <span class="stage-badge" id="badge-exec">-</span>
+                    </div>
+                    <div class="stage-detail" id="detail-exec">-</div>
+                </div>
+                <div class="stage" id="stage-reflect">
+                    <div class="stage-header">
+                        <span class="stage-title"><i data-lucide="eye"></i> 5. Reflection</span>
+                        <span class="stage-badge" id="badge-reflect">-</span>
+                    </div>
+                    <div class="stage-detail" id="detail-reflect">-</div>
+                </div>
+                <div class="stage" id="stage-output">
+                    <div class="stage-header">
+                        <span class="stage-title"><i data-lucide="send"></i> 6. Output</span>
+                        <span class="stage-badge" id="badge-output">-</span>
+                    </div>
+                    <div class="stage-detail" id="detail-output">-</div>
+                </div>
             </div>
-            <div class="stage" id="stage-context">
-                <div class="stage-header">
-                    <span class="stage-title"><i data-lucide="database"></i> 2. Context</span>
-                    <span class="stage-badge" id="badge-context">-</span>
+        </div>
+
+        <!-- Custom Media Player Panel -->
+        <div class="panel" id="media-panel" style="display: none; height: 380px; flex-shrink: 0; flex-direction: column; overflow: hidden;">
+            <h2><i data-lucide="music"></i> Media Player</h2>
+            <div id="media-container" style="flex: 1; display: flex; flex-direction: column; gap: 10px; overflow: hidden; margin-top: 12px;">
+                <div id="media-info" style="font-size: 0.85rem; font-weight: 700; color: var(--cyan); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                    No media playing
                 </div>
-                <div class="stage-detail" id="detail-context">-</div>
-            </div>
-            <div class="stage" id="stage-router">
-                <div class="stage-header">
-                    <span class="stage-title"><i data-lucide="git-branch"></i> 3. Router</span>
-                    <span class="stage-badge" id="badge-router">-</span>
+                
+                <div id="player-frame-wrapper" style="width: 100%; height: 110px; background: rgba(0,0,0,0.4); border-radius: 8px; overflow: hidden; position: relative;">
+                    <div id="yt-player" style="width: 100%; height: 100%; position: absolute; top:0; left:0;"></div>
+                    <video id="video-player" style="width: 100%; height: 100%; position: absolute; top:0; left:0; display: none; object-fit: cover;" controls></video>
                 </div>
-                <div class="stage-detail" id="detail-router">-</div>
-            </div>
-            <div class="stage" id="stage-exec">
-                <div class="stage-header">
-                    <span class="stage-title"><i data-lucide="cpu"></i> 4. Execution</span>
-                    <span class="stage-badge" id="badge-exec">-</span>
+                
+                <div style="display: flex; align-items: center; justify-content: center; gap: 12px;">
+                    <button id="media-btn-play" class="control-btn" style="border-radius: 50%; width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                        <i data-lucide="play"></i>
+                    </button>
+                    <div style="flex: 1; display: flex; align-items: center; gap: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem;">
+                        <span id="media-time-current">0:00</span>
+                        <input id="media-progress" type="range" value="0" min="0" max="100" style="flex: 1; accent-color: var(--cyan); cursor: pointer; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; outline: none; border: none;">
+                        <span id="media-time-total">0:00</span>
+                    </div>
                 </div>
-                <div class="stage-detail" id="detail-exec">-</div>
-            </div>
-            <div class="stage" id="stage-reflect">
-                <div class="stage-header">
-                    <span class="stage-title"><i data-lucide="eye"></i> 5. Reflection</span>
-                    <span class="stage-badge" id="badge-reflect">-</span>
+
+                <div id="lyrics-container" style="flex: 1; overflow-y: auto; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 10px; font-size: 0.8rem; line-height: 1.6; color: var(--text-muted); text-align: center; border: 1px solid rgba(255,255,255,0.03);">
+                    <div id="lyrics-content" style="white-space: pre-wrap;">Lyrics will appear here...</div>
                 </div>
-                <div class="stage-detail" id="detail-reflect">-</div>
-            </div>
-            <div class="stage" id="stage-output">
-                <div class="stage-header">
-                    <span class="stage-title"><i data-lucide="send"></i> 6. Output</span>
-                    <span class="stage-badge" id="badge-output">-</span>
-                </div>
-                <div class="stage-detail" id="detail-output">-</div>
             </div>
         </div>
     </div>
@@ -568,6 +616,279 @@
     </div>
 
     <script>
+        // Media Player state
+        let ytPlayer = null;
+        let isYtReady = false;
+        let activeSourceType = null; // 'youtube' or 'direct_video'
+        let lyricsLines = [];
+        let progressInterval = null;
+        let activeLyricIdx = -1;
+
+        // YouTube API ready callback
+        window.onYouTubeIframeAPIReady = function() {
+            isYtReady = true;
+            console.log('YouTube API ready');
+        };
+
+        // Load YouTube Player API asynchronously
+        const tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        const firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+        function formatTime(s) {
+            if (isNaN(s)) return '0:00';
+            const min = Math.floor(s / 60);
+            const sec = Math.floor(s % 60);
+            return `${min}:${sec < 10 ? '0' : ''}${sec}`;
+        }
+
+        function updatePlayButton(isPlaying) {
+            const btn = document.getElementById('media-btn-play');
+            if (!btn) return;
+            btn.innerHTML = isPlaying ? '<i data-lucide="pause"></i>' : '<i data-lucide="play"></i>';
+            lucide.createIcons({ root: btn });
+        }
+
+        function updateProgressUI(current, duration) {
+            if (!duration || isNaN(duration)) return;
+            const pct = (current / duration) * 100;
+            document.getElementById('media-progress').value = pct;
+            document.getElementById('media-time-current').textContent = formatTime(current);
+            document.getElementById('media-time-total').textContent = formatTime(duration);
+            updateLyricsHighlight(current);
+        }
+
+        function startTrackingProgress() {
+            clearInterval(progressInterval);
+            progressInterval = setInterval(() => {
+                if (activeSourceType === 'youtube' && ytPlayer && ytPlayer.getCurrentTime && ytPlayer.getDuration) {
+                    const current = ytPlayer.getCurrentTime();
+                    const duration = ytPlayer.getDuration();
+                    updateProgressUI(current, duration);
+                }
+            }, 500);
+        }
+
+        function onYtPlayerReady(event) {
+            updatePlayButton(true);
+            startTrackingProgress();
+        }
+
+        function onYtPlayerStateChange(event) {
+            if (event.data === YT.PlayerState.PLAYING) {
+                updatePlayButton(true);
+                startTrackingProgress();
+            } else if (event.data === YT.PlayerState.PAUSED) {
+                updatePlayButton(false);
+                clearInterval(progressInterval);
+            } else if (event.data === YT.PlayerState.ENDED) {
+                updatePlayButton(false);
+                clearInterval(progressInterval);
+                document.getElementById('media-progress').value = 0;
+                document.getElementById('media-time-current').textContent = '0:00';
+            }
+        }
+
+        function loadYtVideo(videoId) {
+            activeSourceType = 'youtube';
+            document.getElementById('video-player').style.display = 'none';
+            document.getElementById('video-player').pause();
+            
+            // Re-create the yt-player div to avoid API load state issues
+            const wrapper = document.getElementById('player-frame-wrapper');
+            wrapper.innerHTML = '<div id="yt-player" style="width: 100%; height: 100%;"></div><video id="video-player" style="width: 100%; height: 100%; position: absolute; top:0; left:0; display: none; object-fit: cover;"></video>';
+            
+            initDirectVideoEvents();
+
+            if (!isYtReady) {
+                console.warn('YouTube Player API not ready yet. Retrying in 1s...');
+                setTimeout(() => loadYtVideo(videoId), 1000);
+                return;
+            }
+
+            const isVideoId = videoId.length === 11 && !/\s/.test(videoId);
+            const playerVars = {
+                'autoplay': 1,
+                'controls': 0,
+                'rel': 0,
+                'showinfo': 0,
+                'modestbranding': 1,
+                'disablekb': 1,
+                'fs': 0
+            };
+            if (!isVideoId) {
+                playerVars.listType = 'search';
+                playerVars.list = videoId;
+            }
+
+            ytPlayer = new YT.Player('yt-player', {
+                height: '100%',
+                width: '100%',
+                host: 'https://www.youtube-nocookie.com',
+                videoId: isVideoId ? videoId : undefined,
+                playerVars: playerVars,
+                events: {
+                    'onReady': onYtPlayerReady,
+                    'onStateChange': onYtPlayerStateChange
+                }
+            });
+        }
+
+        function loadDirectVideo(url) {
+            activeSourceType = 'direct_video';
+            if (ytPlayer && ytPlayer.destroy) {
+                ytPlayer.destroy();
+            }
+            
+            const videoPlayer = document.getElementById('video-player');
+            videoPlayer.style.display = 'block';
+            videoPlayer.src = url;
+            videoPlayer.play().catch(e => console.warn('Autoplay blocked', e));
+        }
+
+        function initDirectVideoEvents() {
+            const videoPlayer = document.getElementById('video-player');
+            if (!videoPlayer) return;
+            videoPlayer.addEventListener('play', () => {
+                updatePlayButton(true);
+            });
+            videoPlayer.addEventListener('pause', () => {
+                updatePlayButton(false);
+            });
+            videoPlayer.addEventListener('timeupdate', () => {
+                if (activeSourceType === 'direct_video') {
+                    updateProgressUI(videoPlayer.currentTime, videoPlayer.duration);
+                }
+            });
+            videoPlayer.addEventListener('ended', () => {
+                updatePlayButton(false);
+                document.getElementById('media-progress').value = 0;
+                document.getElementById('media-time-current').textContent = '0:00';
+            });
+        }
+
+        function parseLyrics(text) {
+            const lines = text.split('\n');
+            const timeRegex = /\[(\d+):(\d+)(?:\.(\d+))?\]/;
+            const parsed = [];
+            
+            for (let line of lines) {
+                line = line.trim();
+                const match = line.match(timeRegex);
+                if (match) {
+                    const min = parseInt(match[1]);
+                    const sec = parseInt(match[2]);
+                    const ms = match[3] ? parseInt(match[3]) : 0;
+                    const time = min * 60 + sec + (ms / 100);
+                    const cleanText = line.replace(/\[\d+:\d+(?:\.\d+)?\]/g, '').trim();
+                    parsed.push({ time, text: cleanText });
+                }
+            }
+            return parsed;
+        }
+
+        function renderLyrics(text) {
+            const container = document.getElementById('lyrics-content');
+            container.innerHTML = '';
+            activeLyricIdx = -1;
+            
+            const parsed = parseLyrics(text);
+            lyricsLines = parsed;
+            
+            if (parsed.length > 0) {
+                parsed.forEach((line, idx) => {
+                    const div = document.createElement('div');
+                    div.className = 'lyric-line';
+                    div.id = `lyric-line-${idx}`;
+                    div.textContent = line.text || '...';
+                    div.addEventListener('click', () => {
+                        seekToTime(line.time);
+                    });
+                    container.appendChild(div);
+                });
+            } else {
+                container.textContent = text;
+            }
+        }
+
+        function seekToTime(time) {
+            if (activeSourceType === 'youtube' && ytPlayer && ytPlayer.seekTo) {
+                ytPlayer.seekTo(time, true);
+            } else if (activeSourceType === 'direct_video') {
+                const videoPlayer = document.getElementById('video-player');
+                if (videoPlayer) videoPlayer.currentTime = time;
+            }
+        }
+
+        function updateLyricsHighlight(currentTime) {
+            if (!lyricsLines || lyricsLines.length === 0) return;
+            
+            let activeIdx = -1;
+            for (let i = 0; i < lyricsLines.length; i++) {
+                if (currentTime >= lyricsLines[i].time) {
+                    activeIdx = i;
+                } else {
+                    break;
+                }
+            }
+            
+            if (activeIdx !== -1 && activeIdx !== activeLyricIdx) {
+                const prev = document.getElementById(`lyric-line-${activeLyricIdx}`);
+                if (prev) prev.classList.remove('active');
+                
+                const current = document.getElementById(`lyric-line-${activeIdx}`);
+                if (current) {
+                    current.classList.add('active');
+                    const container = document.getElementById('lyrics-container');
+                    const scrollOffset = current.offsetTop - (container.clientHeight / 2) + (current.clientHeight / 2);
+                    container.scrollTo({ top: scrollOffset, behavior: 'smooth' });
+                }
+                
+                activeLyricIdx = activeIdx;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const btnPlay = document.getElementById('media-btn-play');
+            const progressRange = document.getElementById('media-progress');
+            
+            btnPlay.addEventListener('click', () => {
+                if (activeSourceType === 'youtube' && ytPlayer && ytPlayer.getPlayerState) {
+                    const state = ytPlayer.getPlayerState();
+                    if (state === YT.PlayerState.PLAYING) {
+                        ytPlayer.pauseVideo();
+                    } else {
+                        ytPlayer.playVideo();
+                    }
+                } else if (activeSourceType === 'direct_video') {
+                    const videoPlayer = document.getElementById('video-player');
+                    if (videoPlayer) {
+                        if (videoPlayer.paused) {
+                            videoPlayer.play();
+                        } else {
+                            videoPlayer.pause();
+                        }
+                    }
+                }
+            });
+
+            progressRange.addEventListener('input', () => {
+                const pct = parseFloat(progressRange.value);
+                if (activeSourceType === 'youtube' && ytPlayer && ytPlayer.getDuration) {
+                    const dur = ytPlayer.getDuration();
+                    ytPlayer.seekTo(dur * (pct / 100), true);
+                } else if (activeSourceType === 'direct_video') {
+                    const videoPlayer = document.getElementById('video-player');
+                    if (videoPlayer && videoPlayer.duration) {
+                        videoPlayer.currentTime = videoPlayer.duration * (pct / 100);
+                    }
+                }
+            });
+
+            initDirectVideoEvents();
+        });
+
         let autoScroll = true;
         const term = document.getElementById('terminal');
         const btnClear = document.getElementById('btn-clear');
@@ -701,6 +1022,26 @@
                     currentTokenLine.textContent += evt.payload.token;
                     if (autoScroll) {
                         term.scrollTop = term.scrollHeight;
+                    }
+                }
+
+                // Handle Media Player Events
+                else if (evt.type === 'media:play') {
+                    // Show media panel
+                    const panel = document.getElementById('media-panel');
+                    panel.style.display = 'flex';
+                    
+                    // Update info
+                    document.getElementById('media-info').textContent = `${evt.payload.title} - ${evt.payload.artist}`;
+                    
+                    // Render lyrics
+                    renderLyrics(evt.payload.lyrics);
+                    
+                    // Load media source
+                    if (evt.payload.sourceType === 'youtube') {
+                        loadYtVideo(evt.payload.sourceUrl);
+                    } else if (evt.payload.sourceType === 'direct_video') {
+                        loadDirectVideo(evt.payload.sourceUrl);
                     }
                 }
 

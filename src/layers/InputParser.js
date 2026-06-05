@@ -44,6 +44,8 @@ export class InputParser {
             { prefix: '/pull ',      type: 'pull',      slice: 6  },
             { prefix: '/workspace ', type: 'workspace', slice: 11 },
             { prefix: '/search ',    type: 'search',    slice: 8  },
+            { prefix: '/embed ',     type: 'embed',     slice: 7  },
+            { prefix: '/crawl ',     type: 'crawl',     slice: 7  },
         ];
 
         for (const { prefix, type, slice } of prefixes) {

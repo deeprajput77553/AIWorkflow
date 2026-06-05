@@ -41,6 +41,7 @@ export const AGENT_EVENTS = {
     LOOP_RESET:          'system:loop_reset',
     PROFILE_UPDATED:     'system:profile_updated',
     WS_CLIENT_CONNECTED: 'system:ws_connected',
+    PLAY_MEDIA:          'media:play',
 };
 
 class EventBus {

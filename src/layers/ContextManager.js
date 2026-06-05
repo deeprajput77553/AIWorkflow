@@ -5,6 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import Logger from '../utils/Logger.js';
 import { bus, AGENT_EVENTS } from '../core/EventBus.js';
+import { vectorStore } from '../core/VectorStore.js';
 
 // ── File paths ──────────────────────────────────────────────────────────────
 const MEMORY_FILE = path.join(process.cwd(), 'memory.json');
@@ -241,6 +242,23 @@ export class ContextManager {
         ctx.workspaceSnapshot = this.getWorkspaceSnapshot(ctx.workspaceDir);
         ctx.indiaContext = this.getIndiaContext();
         ctx.contextHeader = this.buildContextHeader();
+
+        // --- NATIVE RAG RETRIEVAL ---
+        try {
+            const results = await vectorStore.search(ctx.enrichedPrompt, 3);
+            if (results && results.length > 0) {
+                Logger.info(`[ContextManager] Retrieved ${results.length} chunks via RAG`);
+                let ragContext = `\n\n[Retrieved Documents]:\n` +
+                    `The following information was retrieved from the local knowledge base to help answer the user's query.\n` +
+                    `CRITICAL RULE: You MUST cite every fact you use from this section inline at the end of the sentence using the exact format: [Source: <document_name>, Chunk <number>] (e.g. [Source: https://en.wikipedia.org/wiki/IBM, Chunk 2]). Do NOT use conversational citations like "According to the webpage...".\n`;
+                results.forEach((res, i) => {
+                    ragContext += `\n--- Document: ${res.metadata.source} (Chunk ${res.metadata.chunkIndex + 1}) ---\n${res.text}\n`;
+                });
+                ctx.contextHeader += ragContext;
+            }
+        } catch (err) {
+            Logger.warn(`[ContextManager] RAG retrieval failed: ${err.message}`);
+        }
 
         bus.emit(AGENT_EVENTS.CONTEXT_BUILT, {
             historySize: this._history.length,

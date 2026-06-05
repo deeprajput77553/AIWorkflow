@@ -8,5 +8,10 @@
     "start": "node aria.js"
   },
   "author": "Deep Rajput",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "cheerio": "^1.2.0",
+    "mammoth": "^1.12.0",
+    "pdf-parse": "^2.4.5"
+  }
 }

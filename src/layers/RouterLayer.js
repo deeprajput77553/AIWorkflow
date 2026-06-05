@@ -92,6 +92,45 @@ function detectImageIntent(prompt) {
     return null;
 }
 
+function detectWebSearchIntent(prompt) {
+    const p = prompt.toLowerCase().trim();
+    const searchRegex = /^(?:search\s+the\s+web\s+for|search\s+for|search|google|duckduckgo)\s+(.+)$/i;
+    const match = p.match(searchRegex);
+    if (match) {
+        let topic = match[1].trim();
+        Logger.debug(`[PreRouter] Fast-track websearch: "${topic}"`);
+        return makeRoute('feature', 'low', 'web_search', 'Search the web for the requested topic.', 0.99, 'websearch', { topic });
+    }
+    return null;
+}
+
+function detectPlayMediaIntent(prompt) {
+    const p = prompt.toLowerCase().trim();
+    const playRegex = /^(?:play|listen\s+to|watch|stream)\s+(.+)$/i;
+    const match = p.match(playRegex);
+    if (match) {
+        let mediaQuery = match[1].trim();
+        mediaQuery = mediaQuery.replace(/\s+(please|now|for me)$/i, '').trim();
+        
+        let artist = '';
+        let query = mediaQuery;
+        const byMatch = mediaQuery.match(/(.+)\s+by\s+(.+)$/i);
+        if (byMatch) {
+            query = byMatch[1].trim();
+            artist = byMatch[2].trim();
+        }
+
+        let type = 'music';
+        if (p.startsWith('watch') || /\b(video|clip|movie)\b/i.test(p)) {
+            type = 'video';
+        }
+
+        Logger.debug(`[PreRouter] Fast-track playmedia: "${query}" by "${artist}" (${type})`);
+        return makeRoute('feature', 'low', 'play_media', 'Play the requested song or video.', 0.99, 'playmedia', { query, type, artist });
+    }
+    return null;
+}
+
 function makeRoute(mode, complexity, intent, extraPrompt, confidence = 0.75, featureName = null, featureParams = {}) {
     return { mode, complexity, intent, extraPrompt, confidence, featureName, featureParams, subTasks: [] };
 }
@@ -150,7 +189,7 @@ export class RouterLayer {
         Logger.stage('RouterLayer', 'Routing prompt...');
 
         // 1. Pre-router — zero LLM latency
-        const preRoute = detectDocumentIntent(ctx.enrichedPrompt) || detectVersionCheck(ctx.enrichedPrompt) || detectComplexIntent(ctx.enrichedPrompt) || detectImageIntent(ctx.enrichedPrompt);
+        const preRoute = detectWebSearchIntent(ctx.enrichedPrompt) || detectPlayMediaIntent(ctx.enrichedPrompt) || detectDocumentIntent(ctx.enrichedPrompt) || detectVersionCheck(ctx.enrichedPrompt) || detectComplexIntent(ctx.enrichedPrompt) || detectImageIntent(ctx.enrichedPrompt);
         if (preRoute) {
             ctx.routeDecision = preRoute;
             bus.emit(AGENT_EVENTS.PRE_ROUTER_HIT, { route: preRoute });
